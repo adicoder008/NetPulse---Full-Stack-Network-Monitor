@@ -1,0 +1,28 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ServiceStatus {
+  UP
+  DOWN
+  UNKNOWN
+}
+
+model Service {
+  id               String        @id @default(uuid())
+  name             String        @unique
+  url              String
+  intervalSec      Int
+  isActive         Boolean       @default(true)
+  lastKnownStatus  ServiceStatus @default(UNKNOWN)
+  tags             String[]      @default([])
+  totalChecks      Int           @default(0)
+  successfulChecks Int           @default(0)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+}

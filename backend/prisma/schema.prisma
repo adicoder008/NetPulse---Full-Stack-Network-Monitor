@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ServiceStatus {
+  UP
+  DOWN
+  UNKNOWN
+}
+
+enum IncidentStatus {
+  OPEN
+  RESOLVED
+}
+
+enum Environment {
+  PRODUCTION
+  STAGING
+  DEVELOPMENT
+}
+
+enum TimelineEventType {
+  SERVICE_CREATED
+  SERVICE_CHECKED
+  SERVICE_FAILED
+  INCIDENT_OPENED
+  INCIDENT_RESOLVED
+}
+
+enum AlertChannelType {
+  DISCORD
+  WEBHOOK
+}
+
+model Service {
+  id               String        @id @default(uuid())
+  name             String        @unique
+  url              String
+  intervalSec      Int
+  isActive         Boolean       @default(true)
+  lastKnownStatus  ServiceStatus @default(UNKNOWN)
+  environment      Environment   @default(PRODUCTION)
+  tags             String[]      @default([])
+  totalChecks      Int           @default(0)
+  successfulChecks Int           @default(0)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  metrics    Metric[]
+  incidents  Incident[]
+  timeline   TimelineEvent[]
+
+  @@index([isActive])
+  @@index([environment])
+  @@index([updatedAt])
+  @@index([tags], type: Gin)
+}
+
+model Metric {
+  id            String        @id @default(uuid())
+  serviceId     String
+  status        ServiceStatus
+  latencyMs     Int
+  checkedAt     DateTime
+  region        String        @default("default")
+  streamEventId String        @unique
+  errorMessage  String?
+  createdAt     DateTime      @default(now())
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId, checkedAt(sort: Desc)])
+  @@index([serviceId, region, checkedAt(sort: Desc)])
+  @@index([checkedAt])
+}
+
+model Incident {
+  id                  String         @id @default(uuid())
+  serviceId           String
+  startedAt           DateTime       @default(now())
+  resolvedAt          DateTime?
+  status              IncidentStatus @default(OPEN)
+  triggeredByMetricId String?
+  resolvedByMetricId  String?
+  failureCountAtOpen  Int            @default(3)
+  summary             String
+  acknowledgedAt      DateTime?
+  acknowledgedBy      String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  service         Service          @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  alertDeliveries AlertDelivery[]
+
+  @@index([serviceId, status])
+  @@index([startedAt(sort: Desc)])
+  @@index([acknowledgedAt])
+}
+
+model TimelineEvent {
+  id         String            @id @default(uuid())
+  serviceId  String?
+  incidentId String?
+  eventType  TimelineEventType
+  message    String
+  payload    Json?
+  createdAt  DateTime          @default(now())
+
+  service Service? @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@index([eventType, createdAt(sort: Desc)])
+}
+
+model AlertChannel {
+  id        String           @id @default(uuid())
+  name      String
+  type      AlertChannelType
+  webhookUrl String
+  isEnabled Boolean          @default(true)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  deliveries AlertDelivery[]
+
+  @@index([isEnabled])
+}
+
+model AlertDelivery {
+  id         String   @id @default(uuid())
+  channelId  String
+  incidentId String
+  alertType  String
+  deliveredAt DateTime @default(now())
+
+  channel  AlertChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  incident Incident     @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, incidentId, alertType])
+  @@index([incidentId])
+}
