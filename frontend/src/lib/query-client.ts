@@ -4,9 +4,11 @@ import type { AppFilters } from "@/lib/filters";
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 4000,
-      refetchInterval: 5000,
-      retry: 1
+      staleTime: 30_000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true
+      // No global refetchInterval — WebSocket + manual refresh drive updates
     }
   }
 });

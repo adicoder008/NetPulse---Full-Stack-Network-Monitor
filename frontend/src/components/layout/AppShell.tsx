@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { AppContext } from "@/context/AppContext";
+import { queryClient } from "@/lib/query-client";
 import type { AppFilters, WsConnectionStatus } from "@/lib/filters";
 
 export function AppShell() {
@@ -13,6 +14,15 @@ export function AppShell() {
   const [wsStatus, setWsStatus] = useState<WsConnectionStatus>("connecting");
 
   useWebSocket(setWsStatus);
+
+  // Gentle fallback refresh every 30s (WebSocket handles real-time)
+  useEffect(() => {
+    const id = setInterval(() => {
+      void queryClient.invalidateQueries({ queryKey: ["summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
+    }, 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   const filters: AppFilters = { environment, search };
 

@@ -17,10 +17,30 @@ export const wsUrl = import.meta.env.VITE_WS_URL ?? "ws://localhost:8080/ws";
 
 type FilterOpts = Partial<AppFilters> & { tags?: string };
 
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    public code: string,
+    message: string
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${apiBase}${path}`, init);
   if (!res.ok) {
-    throw new Error(`API error ${res.status}: ${path}`);
+    let message = `API error ${res.status}: ${path}`;
+    let code = "REQUEST_FAILED";
+    try {
+      const body = (await res.json()) as { error?: { code?: string; message?: string } };
+      if (body.error?.message) message = body.error.message;
+      if (body.error?.code) code = body.error.code;
+    } catch {
+      // ignore parse errors
+    }
+    throw new ApiError(res.status, code, message);
   }
   return res.json() as Promise<T>;
 }
@@ -119,7 +139,7 @@ export const api = {
     tags?: string[];
     environment?: string;
   }) =>
-    request("/services", {
+    request<{ service: Service }>("/services", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body)

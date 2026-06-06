@@ -20,9 +20,18 @@ export async function registerServiceRoutes(app: any) {
   const svc = new ServiceService(new ServiceRepository());
 
   app.post("/api/services", async (req: any, reply: any) => {
-    const body = createSchema.parse(req.body);
-    const service = await svc.create(body);
-    return reply.code(201).send({ service });
+    try {
+      const body = createSchema.parse(req.body);
+      const service = await svc.create(body);
+      return reply.code(201).send({ service });
+    } catch (error: any) {
+      if (error.code === "P2002") {
+        return reply.code(409).send({
+          error: { code: "DUPLICATE_SERVICE", message: "A service with this name already exists" }
+        });
+      }
+      throw error;
+    }
   });
 
   app.get("/api/services", async (req: any) => {

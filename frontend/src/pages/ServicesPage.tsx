@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { ApiError } from "@/lib/api";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -24,6 +25,10 @@ export function ServicesPage() {
     tags: "",
     environment: filters.environment
   });
+
+  useEffect(() => {
+    setNewService((v) => ({ ...v, environment: filters.environment }));
+  }, [filters.environment]);
 
   const listFilters = { ...filters, tags: tagFilter || undefined };
 
@@ -70,7 +75,14 @@ export function ServicesPage() {
       </div>
 
       <Card>
-        <CardHeader title="Add Service" subtitle="HTTP health check endpoint" />
+        <CardHeader title="Add Service" subtitle="URL must include https:// · name must be unique" />
+        {createMutation.isError && (
+          <div className="mb-3 rounded border border-status-critical/30 bg-status-critical/10 px-3 py-2 text-sm text-status-critical">
+            {createMutation.error instanceof ApiError
+              ? createMutation.error.message
+              : "Failed to add service. Check API is running."}
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-6 gap-2">
           <Input placeholder="Service name" value={newService.name} onChange={(e) => setNewService((v) => ({ ...v, name: e.target.value }))} />
           <Input className="md:col-span-2" placeholder="https://api.example.com/health" value={newService.url} onChange={(e) => setNewService((v) => ({ ...v, url: e.target.value }))} />
