@@ -7,11 +7,11 @@ import { queryKeys } from "@/lib/query-client";
 import { useAppFilters } from "@/context/AppContext";
 import { environmentToApi } from "@/lib/filters";
 import { Card, CardHeader } from "@/components/ui/Card";
-import { Badge, statusToBadge } from "@/components/ui/Badge";
+import { Badge, healthBadgeLabel, healthBadgeVariant } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
-import { formatLatency, formatUptime } from "@/lib/utils";
+import { formatLatency, formatUptime, formatHttpStatus } from "@/lib/utils";
 import type { AppFilters } from "@/lib/filters";
 
 export function ServicesPage() {
@@ -75,7 +75,7 @@ export function ServicesPage() {
       </div>
 
       <Card>
-        <CardHeader title="Add Service" subtitle="URL must include https:// · name must be unique" />
+        <CardHeader title="Add Service" subtitle="UP = HTTP 1–499 · DOWN = 5xx or unreachable · name must be unique" />
         {createMutation.isError && (
           <div className="mb-3 rounded border border-status-critical/30 bg-status-critical/10 px-3 py-2 text-sm text-status-critical">
             {createMutation.error instanceof ApiError
@@ -116,6 +116,7 @@ export function ServicesPage() {
             <TH>Name</TH>
             <TH>Environment</TH>
             <TH>Status</TH>
+            <TH>HTTP</TH>
             <TH>Latency</TH>
             <TH>Uptime</TH>
             <TH>Region</TH>
@@ -132,7 +133,12 @@ export function ServicesPage() {
                   <div className="text-2xs text-slate-500 truncate max-w-[200px]">{s.url}</div>
                 </TD>
                 <TD className="text-xs">{s.environment}</TD>
-                <TD><Badge variant={statusToBadge(s.lastKnownStatus)} dot>{s.lastKnownStatus}</Badge></TD>
+                <TD>
+                  <Badge variant={healthBadgeVariant(s.lastKnownStatus, s.latest?.statusCode)} dot>
+                    {healthBadgeLabel(s.lastKnownStatus, s.latest?.statusCode)}
+                  </Badge>
+                </TD>
+                <TD className="tabular-nums text-xs">{formatHttpStatus(s.latest?.statusCode)}</TD>
                 <TD className="tabular-nums">{formatLatency(s.latest?.latencyMs)}</TD>
                 <TD className="tabular-nums">{formatUptime(s.uptimePercent)}</TD>
                 <TD className="text-xs">{s.latest?.region ?? "—"}</TD>

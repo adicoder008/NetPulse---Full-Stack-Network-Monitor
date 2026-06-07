@@ -60,3 +60,17 @@ export function statusBg(status: string): string {
       return "bg-slate-800 text-slate-400 border-edge";
   }
 }
+
+/** UP if HTTP 1–499, DOWN for 5xx or unreachable (0). Matches worker logic. */
+export function isHttpUp(statusCode: number | null | undefined): boolean {
+  return statusCode != null && statusCode > 0 && statusCode < 500;
+}
+
+export function isDegradedHttp(statusCode: number | null | undefined): boolean {
+  return statusCode != null && statusCode >= 400 && statusCode < 500;
+}
+
+export function formatHttpStatus(statusCode: number | null | undefined): string {
+  if (statusCode == null || statusCode === 0) return "—";
+  return String(statusCode);
+}

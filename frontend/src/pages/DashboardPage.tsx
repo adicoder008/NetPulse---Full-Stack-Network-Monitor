@@ -6,7 +6,7 @@ import { queryKeys } from "@/lib/query-client";
 import { useAppFilters } from "@/context/AppContext";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { Card, CardHeader } from "@/components/ui/Card";
-import { Badge, statusToBadge } from "@/components/ui/Badge";
+import { Badge, healthBadgeLabel, healthBadgeVariant } from "@/components/ui/Badge";
 import { LatencyChart, StatusBarChart } from "@/components/charts/MetricCharts";
 import { NetworkTopology } from "@/components/topology/NetworkTopology";
 import { formatLatency, formatRelativeTime } from "@/lib/utils";
@@ -167,8 +167,8 @@ export function DashboardPage() {
               className="flex items-center justify-between px-4 py-2.5 hover:bg-surface-overlay/50 transition-colors"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <Badge variant={statusToBadge(s.lastKnownStatus)} dot>
-                  {s.lastKnownStatus}
+                <Badge variant={healthBadgeVariant(s.lastKnownStatus, s.latest?.statusCode)} dot>
+                  {healthBadgeLabel(s.lastKnownStatus, s.latest?.statusCode)}
                 </Badge>
                 <span className="text-sm text-slate-200 truncate">{s.name}</span>
               </div>

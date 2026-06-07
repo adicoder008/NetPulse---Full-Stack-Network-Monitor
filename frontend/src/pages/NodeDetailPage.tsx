@@ -5,12 +5,12 @@ import { ArrowLeft, ExternalLink } from "lucide-react";
 import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/query-client";
 import { useAppFilters } from "@/context/AppContext";
-import { Badge, statusToBadge } from "@/components/ui/Badge";
+import { Badge, healthBadgeLabel, healthBadgeVariant } from "@/components/ui/Badge";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Input";
 import { LatencyChart, MetricAreaChart } from "@/components/charts/MetricCharts";
-import { formatLatency, formatTimestamp, formatUptime } from "@/lib/utils";
+import { formatLatency, formatTimestamp, formatUptime, formatHttpStatus } from "@/lib/utils";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 
 export function NodeDetailPage() {
@@ -100,8 +100,8 @@ export function NodeDetailPage() {
         <div className="flex-1">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-lg font-semibold text-slate-100">{service.name}</h1>
-            <Badge variant={statusToBadge(service.lastKnownStatus)} dot>
-              {service.lastKnownStatus}
+            <Badge variant={healthBadgeVariant(service.lastKnownStatus, service.latest?.statusCode)} dot>
+              {healthBadgeLabel(service.lastKnownStatus, service.latest?.statusCode)}
             </Badge>
             <Badge variant="activity">{service.environment}</Badge>
           </div>
@@ -120,7 +120,7 @@ export function NodeDetailPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Card className="p-3">
           <div className="text-2xs text-slate-500 uppercase">Latency</div>
           <div className="text-lg font-semibold text-status-metric tabular-nums">{formatLatency(service.latest?.latencyMs)}</div>
@@ -134,6 +134,12 @@ export function NodeDetailPage() {
         <Card className="p-3">
           <div className="text-2xs text-slate-500 uppercase">Check Interval</div>
           <div className="text-lg font-semibold text-slate-200 tabular-nums">{service.intervalSec}s</div>
+        </Card>
+        <Card className="p-3">
+          <div className="text-2xs text-slate-500 uppercase">HTTP Status</div>
+          <div className="text-lg font-semibold text-slate-200 tabular-nums">
+            {formatHttpStatus(service.latest?.statusCode)}
+          </div>
         </Card>
         <Card className="p-3">
           <div className="text-2xs text-slate-500 uppercase">Region</div>
@@ -176,6 +182,7 @@ export function NodeDetailPage() {
           <Table>
             <THead>
               <TH>Status</TH>
+              <TH>HTTP</TH>
               <TH>Latency</TH>
               <TH>Region</TH>
               <TH>Time</TH>
@@ -183,7 +190,12 @@ export function NodeDetailPage() {
             <TBody>
               {raw.map((m) => (
                 <TR key={m.id}>
-                  <TD><Badge variant={statusToBadge(m.status)}>{m.status}</Badge></TD>
+                  <TD>
+                    <Badge variant={healthBadgeVariant(m.status, m.statusCode)}>
+                      {healthBadgeLabel(m.status, m.statusCode)}
+                    </Badge>
+                  </TD>
+                  <TD className="tabular-nums">{formatHttpStatus(m.statusCode)}</TD>
                   <TD className="tabular-nums">{m.latencyMs} ms</TD>
                   <TD>{m.region}</TD>
                   <TD className="text-xs text-slate-500">{formatTimestamp(m.checkedAt)}</TD>

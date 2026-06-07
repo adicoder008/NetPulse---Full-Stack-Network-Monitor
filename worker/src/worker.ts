@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import Redis from "ioredis";
 import pino from "pino";
 import { v4 as uuidv4 } from "uuid";
+import { deriveCheckStatus } from "./health-status.js";
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info" });
 const prisma = new PrismaClient();
@@ -16,7 +17,14 @@ const breakerState = new Map<string, { failures: number; openedAt?: number }>();
 const breakerFailureThreshold = 3;
 const breakerCooldownMs = 15000;
 
-async function probe(url: string, retries = 2) {
+type ProbeResult = {
+  status: "UP" | "DOWN";
+  statusCode: number;
+  latencyMs: number;
+  attempt: number;
+};
+
+async function probe(url: string, retries = 2): Promise<ProbeResult> {
   let attempt = 0;
   while (attempt <= retries) {
     attempt += 1;
@@ -26,19 +34,21 @@ async function probe(url: string, retries = 2) {
       const t = setTimeout(() => controller.abort(), timeoutMs);
       const res = await fetch(url, { method: "GET", signal: controller.signal });
       clearTimeout(t);
+      const statusCode = res.status;
       return {
-        status: res.ok ? "UP" : "DOWN",
+        status: deriveCheckStatus(statusCode),
+        statusCode,
         latencyMs: Date.now() - started,
         attempt
       };
     } catch {
       if (attempt > retries) {
-        return { status: "DOWN", latencyMs: Date.now() - started, attempt };
+        return { status: "DOWN", statusCode: 0, latencyMs: Date.now() - started, attempt };
       }
       await new Promise((resolve) => setTimeout(resolve, 150 * attempt));
     }
   }
-  return { status: "DOWN", latencyMs: timeoutMs, attempt: retries + 1 };
+  return { status: "DOWN", statusCode: 0, latencyMs: timeoutMs, attempt: retries + 1 };
 }
 
 function canExecute(serviceId: string) {
@@ -85,15 +95,15 @@ async function runLoop() {
         }
 
         const result = await probe(service.url);
-        const status = result.status as "UP" | "DOWN";
-        recordResult(service.id, status);
+        recordResult(service.id, result.status);
 
         await publishEvent({
           eventType: "health.check.completed.v1",
           eventId: uuidv4(),
           serviceId: service.id,
           url: service.url,
-          status,
+          status: result.status,
+          statusCode: result.statusCode,
           latencyMs: result.latencyMs,
           checkedAt: new Date().toISOString(),
           attempt: result.attempt,

@@ -14,6 +14,7 @@ export type Service = {
     latencyMs: number;
     checkedAt: string;
     status: string;
+    statusCode?: number | null;
     region?: string;
   } | null;
 };
@@ -74,6 +75,7 @@ export type ProbeHistoryPoint = {
 export type RawMetric = {
   id: string;
   status: ServiceStatus;
+  statusCode?: number | null;
   latencyMs: number;
   region: string;
   checkedAt: string;

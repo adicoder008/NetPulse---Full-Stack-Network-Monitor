@@ -54,3 +54,22 @@ export function statusToBadge(status: string): BadgeProps["variant"] {
       return "default";
   }
 }
+
+/** UP + HTTP 4xx → warning (degraded but not down). */
+export function healthBadgeVariant(
+  status: string,
+  statusCode?: number | null
+): BadgeProps["variant"] {
+  if (status === "UP" && statusCode != null && statusCode >= 400 && statusCode < 500) {
+    return "warning";
+  }
+  return statusToBadge(status);
+}
+
+export function healthBadgeLabel(status: string, statusCode?: number | null): string {
+  if (statusCode != null && statusCode > 0) {
+    return `${status} · ${statusCode}`;
+  }
+  return status;
+}
+

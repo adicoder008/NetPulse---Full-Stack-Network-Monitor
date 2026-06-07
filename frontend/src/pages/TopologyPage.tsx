@@ -4,8 +4,8 @@ import { queryKeys } from "@/lib/query-client";
 import { useAppFilters } from "@/context/AppContext";
 import { CardHeader } from "@/components/ui/Card";
 import { NetworkTopology } from "@/components/topology/NetworkTopology";
-import { Badge, statusToBadge } from "@/components/ui/Badge";
-import { formatLatency } from "@/lib/utils";
+import { Badge, healthBadgeLabel, healthBadgeVariant } from "@/components/ui/Badge";
+import { formatLatency, formatHttpStatus } from "@/lib/utils";
 
 export function TopologyPage() {
   const filters = useAppFilters();
@@ -46,7 +46,9 @@ export function TopologyPage() {
             <div key={s.id} className="rounded border border-edge-subtle bg-surface p-3">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-sm font-medium text-slate-200 truncate">{s.name}</span>
-                <Badge variant={statusToBadge(s.lastKnownStatus)}>{s.lastKnownStatus}</Badge>
+                <Badge variant={healthBadgeVariant(s.lastKnownStatus, s.latest?.statusCode)}>
+                  {healthBadgeLabel(s.lastKnownStatus, s.latest?.statusCode)}
+                </Badge>
               </div>
               <div className="text-2xs text-slate-500 truncate">{s.url}</div>
               <div className="text-xs text-slate-400 mt-2 tabular-nums">

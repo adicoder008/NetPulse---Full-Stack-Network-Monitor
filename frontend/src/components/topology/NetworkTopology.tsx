@@ -19,19 +19,22 @@ import { cn } from "@/lib/utils";
 type ServiceNodeData = {
   label: string;
   status: string;
+  statusCode?: number | null;
   latency?: number;
   serviceId: string;
 };
 
 function ServiceNode({ data, selected }: NodeProps<Node<ServiceNodeData>>) {
   const statusStyles = {
-    UP: "border-status-healthy/50 bg-status-healthy/5",
+    UP: data.statusCode != null && data.statusCode >= 400
+      ? "border-status-warning/50 bg-status-warning/5"
+      : "border-status-healthy/50 bg-status-healthy/5",
     DOWN: "border-status-critical/50 bg-status-critical/5",
     UNKNOWN: "border-status-offline/50 bg-status-offline/5"
   };
 
   const dotColor = {
-    UP: "bg-status-healthy",
+    UP: data.statusCode != null && data.statusCode >= 400 ? "bg-status-warning" : "bg-status-healthy",
     DOWN: "bg-status-critical animate-pulse-soft",
     UNKNOWN: "bg-status-offline"
   };
@@ -54,7 +57,10 @@ function ServiceNode({ data, selected }: NodeProps<Node<ServiceNodeData>>) {
         <span className={cn("h-1.5 w-1.5 rounded-full shrink-0 ml-auto", dot)} />
       </div>
       {data.latency != null && (
-        <div className="text-2xs text-slate-500 mt-1 tabular-nums">{data.latency} ms</div>
+        <div className="text-2xs text-slate-500 mt-1 tabular-nums">
+          {data.latency} ms
+          {data.statusCode != null && data.statusCode > 0 ? ` · HTTP ${data.statusCode}` : ""}
+        </div>
       )}
       <Handle type="source" position={Position.Bottom} className="!bg-edge !w-2 !h-2 !border-none" />
     </div>
@@ -107,6 +113,7 @@ export function NetworkTopology({ services, className }: NetworkTopologyProps) {
         data: {
           label: s.name,
           status: s.lastKnownStatus,
+          statusCode: s.latest?.statusCode,
           latency: s.latest?.latencyMs,
           serviceId: s.id
         }
