@@ -1,5 +1,9 @@
 # NetPulse - Distributed Real-Time Service Health & Incident Monitoring
 
+![Network Monitoring Dashboard](public/img1.png)
+![Network Monitoring Metrics](public/img2.png)
+![Network Monitoring Topology](public/img3.png)
+
 NetPulse is a production-style portfolio MVP that demonstrates event-driven monitoring architecture with Node.js, Fastify, PostgreSQL, Redis Streams, WebSockets, and a React dashboard.
 
 ## What this project demonstrates
