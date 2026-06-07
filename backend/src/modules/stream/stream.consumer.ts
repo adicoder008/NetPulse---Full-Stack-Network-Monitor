@@ -1,8 +1,8 @@
-import { ServiceStatus } from "@prisma/client";
 import { env } from "../../config/env.js";
 import { logger } from "../../config/logger.js";
 import { prisma } from "../../infrastructure/db/prisma.client.js";
 import { redis } from "../../infrastructure/redis/redis.client.js";
+import { formatCheckMessage, isHttpUp, toServiceStatus } from "../../lib/health-status.js";
 import { publishDashboardEvent } from "../dashboard/dashboard.gateway.js";
 import { IncidentEngine } from "../incident/incident.engine.js";
 import { StatusCache } from "../cache/status-cache.js";
@@ -20,12 +20,14 @@ function parseEvent(fields: string[]): HealthCheckCompletedEvent {
   for (let i = 0; i < fields.length; i += 2) {
     obj[fields[i]] = fields[i + 1];
   }
+  const statusCode = Number(obj.statusCode ?? 0);
   return {
     eventType: "health.check.completed.v1",
     eventId: obj.eventId,
     serviceId: obj.serviceId,
     url: obj.url,
     status: obj.status as "UP" | "DOWN",
+    statusCode,
     latencyMs: Number(obj.latencyMs),
     checkedAt: obj.checkedAt,
     attempt: Number(obj.attempt ?? 1),
@@ -70,8 +72,9 @@ export async function startStreamConsumer() {
       for (const [, entries] of res as [string, [string, string[]][]][]) {
         for (const [streamId, fields] of entries) {
           const event = parseEvent(fields);
-          const isUp = event.status === "UP";
-          const metricStatus = isUp ? ServiceStatus.UP : ServiceStatus.DOWN;
+          const statusCode = event.statusCode ?? 0;
+          const metricStatus = toServiceStatus(statusCode);
+          const isUp = isHttpUp(statusCode);
           const region = event.region ?? "default";
 
           const existing = await prisma.metric.findUnique({
@@ -86,11 +89,12 @@ export async function startStreamConsumer() {
             data: {
               serviceId: event.serviceId,
               status: metricStatus,
+              statusCode: statusCode > 0 ? statusCode : null,
               latencyMs: event.latencyMs,
               checkedAt: new Date(event.checkedAt),
               streamEventId: event.eventId,
               region,
-              errorMessage: event.errorMessage
+              errorMessage: statusCode === 0 ? (event.errorMessage ?? "Request failed") : null
             }
           });
 
@@ -103,22 +107,23 @@ export async function startStreamConsumer() {
             }
           });
 
-          await timeline.record(
-            isUp ? "SERVICE_CHECKED" : "SERVICE_FAILED",
-            isUp
-              ? `Health check passed (${region}, ${event.latencyMs}ms)`
-              : `Health check failed (${region})`,
-            {
-              serviceId: event.serviceId,
-              payload: { metricId: metric.id, region, latencyMs: event.latencyMs, status: event.status }
+          await timeline.record(isUp ? "SERVICE_CHECKED" : "SERVICE_FAILED", formatCheckMessage(statusCode, region, event.latencyMs), {
+            serviceId: event.serviceId,
+            payload: {
+              metricId: metric.id,
+              region,
+              latencyMs: event.latencyMs,
+              status: metric.status,
+              statusCode
             }
-          );
+          });
 
           const incident = await incidentEngine.evaluate(event.serviceId, metric.id, metric.status);
 
           await statusCache.setLatest(event.serviceId, {
             serviceId: event.serviceId,
             status: metric.status,
+            statusCode: statusCode > 0 ? statusCode : null,
             latencyMs: metric.latencyMs,
             checkedAt: metric.checkedAt.toISOString(),
             region
@@ -129,6 +134,7 @@ export async function startStreamConsumer() {
             payload: {
               serviceId: event.serviceId,
               status: metric.status,
+              statusCode: statusCode > 0 ? statusCode : null,
               latencyMs: metric.latencyMs,
               checkedAt: metric.checkedAt,
               region

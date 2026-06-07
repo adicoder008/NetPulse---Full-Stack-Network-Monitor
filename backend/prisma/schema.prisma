@@ -65,6 +65,7 @@ model Metric {
   id            String        @id @default(uuid())
   serviceId     String
   status        ServiceStatus
+  statusCode    Int?
   latencyMs     Int
   checkedAt     DateTime
   region        String        @default("default")

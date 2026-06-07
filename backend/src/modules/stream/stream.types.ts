@@ -6,6 +6,7 @@ export type HealthCheckCompletedEvent = {
   serviceId: string;
   url: string;
   status: CheckStatus;
+  statusCode: number;
   latencyMs: number;
   checkedAt: string;
   attempt: number;
